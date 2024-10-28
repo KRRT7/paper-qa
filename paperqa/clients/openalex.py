@@ -26,11 +26,10 @@ logger = logging.getLogger(__name__)
 # there is no standalone "FamilyName" or "GivenName" fields
 # this manually constructs the name into the format the other clients use
 def reformat_name(name: str) -> str:
-    if "," not in name:
-        return name
-    family, given_names = (x.strip() for x in name.split(",", maxsplit=1))
-    # Return the reformatted name
-    return f"{given_names} {family}"
+    if "," in name:
+        family, given_names = name.split(",", 1)
+        return f"{given_names.strip()} {family.strip()}"
+    return name
 
 
 async def get_openalex_mailto() -> str | None:
