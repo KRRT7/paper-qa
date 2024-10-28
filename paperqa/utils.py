@@ -12,7 +12,7 @@ import string
 import unicodedata
 from collections.abc import Collection, Coroutine, Iterable, Iterator
 from datetime import datetime
-from functools import reduce
+from functools import lru_cache, reduce
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any, BinaryIO, ClassVar
@@ -44,9 +44,8 @@ class ImpossibleParsingError(Exception):
 
 
 def name_in_text(name: str, text: str) -> bool:
-    sname = name.strip()
-    pattern = rf"\b({re.escape(sname)})\b(?!\w)"
-    return bool(re.search(pattern, text))
+    compiled_pattern = compile_pattern(name)
+    return bool(compiled_pattern.search(text))
 
 
 def maybe_is_text(s: str, thresh: float = 2.5) -> bool:
@@ -501,6 +500,13 @@ def extract_thought(content: str | None) -> str:
     """Extract an Anthropic thought from a message's content."""
     # SEE: https://regex101.com/r/bpJt05/1
     return re.sub(r"<\/?thinking>", "", content or "")
+
+
+@lru_cache(maxsize=None)
+def compile_pattern(name: str) -> re.Pattern:
+    sname = name.strip()
+    pattern = rf"\b({re.escape(sname)})\b(?!\w)"
+    return re.compile(pattern)
 
 
 BIBTEX_MAPPING: dict[str, str] = {
