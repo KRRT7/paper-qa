@@ -65,15 +65,12 @@ def is_running_under_cli() -> bool:
 
 def set_up_rich_handler(install: bool = True) -> RichHandler:
     """Add a RichHandler to the paper-qa "root" logger, and return it."""
-    rich_handler = RichHandler(
-        rich_tracebacks=True, markup=True, show_path=False, show_level=False
-    )
-    rich_handler.setFormatter(logging.Formatter("%(message)s", datefmt="[%X]"))
-    if install and not any(
-        isinstance(h, RichHandler) for h in _PAPERQA_PKG_ROOT_LOGGER.handlers
-    ):
+    if install and not any(isinstance(h, RichHandler) for h in _PAPERQA_PKG_ROOT_LOGGER.handlers):
+        rich_handler = RichHandler(rich_tracebacks=True, markup=True, show_path=False, show_level=False)
+        rich_handler.setFormatter(logging.Formatter("%(message)s", datefmt="[%X]"))
         _PAPERQA_PKG_ROOT_LOGGER.addHandler(rich_handler)
-    return rich_handler
+        return rich_handler
+    return next((h for h in _PAPERQA_PKG_ROOT_LOGGER.handlers if isinstance(h, RichHandler)), None)
 
 
 def configure_log_verbosity(verbosity: int = 0) -> None:
