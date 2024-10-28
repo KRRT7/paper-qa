@@ -451,12 +451,10 @@ class DocDetails(Doc):
 
     @classmethod
     def remove_invalid_authors(cls, data: dict[str, Any]) -> dict[str, Any]:
-        """Capture and cull strange author names."""
-        if authors := data.get("authors"):
-            data["authors"] = [
-                a for a in authors if a.lower() not in cls.AUTHOR_NAMES_TO_REMOVE
-            ]
-
+        """Capture and cull strange author names"""
+        if 'authors' in data:
+            authors_to_remove = cls.AUTHOR_NAMES_TO_REMOVE
+            data["authors"] = [a for a in data["authors"] if a.lower() not in authors_to_remove]
         return data
 
     @staticmethod
