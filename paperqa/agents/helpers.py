@@ -19,7 +19,8 @@ def get_year(ts: datetime | None = None) -> str:
     """Get the year from the input datetime, otherwise using the current datetime."""
     if ts is None:
         ts = datetime.now()
-    return ts.strftime("%Y")
+    # Directly access the year attribute and convert it to string
+    return str(ts.year)
 
 
 async def litellm_get_search_query(
