@@ -223,7 +223,10 @@ class _FormatDict(dict):  # noqa: FURB189
 def get_formatted_variables(s: str) -> set[str]:
     """Returns the set of variables implied by the format string."""
     format_dict = _FormatDict()
-    s.format_map(format_dict)
+    try:
+        s.format_map(format_dict)
+    except KeyError:
+        pass
     return format_dict.key_set
 
 
