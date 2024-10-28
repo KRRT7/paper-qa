@@ -8,6 +8,12 @@ from ast import literal_eval
 from collections.abc import Awaitable, Callable, Sequence
 from enum import IntEnum
 from typing import TYPE_CHECKING
+from functools import lru_cache
+from ldp.utils import discounted_returns
+from paperqa.llms import LLMModel, LiteLLMModel
+from paperqa.prompts import EVAL_PROMPT_TEMPLATE, QA_PROMPT_TEMPLATE
+from paperqa.settings import make_default_litellm_model_list_settings
+from paperqa.types import Answer
 
 try:
     from ldp.utils import discounted_returns
@@ -102,21 +108,12 @@ class LitQAEvaluation(IntEnum):
         cls, text: str, ideal_mc_answer: str, unsure_mc_answer: str | None = None
     ) -> LitQAEvaluation:
         """Compare text with a multiple choice answer or optionally an unsure answer."""
-
-        def extract_answer(answer: str) -> str:
-            # first capital letter, like A or A)
-            s = re.search(r"([A-Z])\)?", answer, re.DOTALL)
-            if s is not None:
-                return s.group(1)
-            return answer.split()[0][0].upper()
-
-        result = extract_answer(text)
-        evaluation_result = cls.INCORRECT
+        result = cls.extract_answer(text)
         if unsure_mc_answer and result[0].lower() == unsure_mc_answer[0].lower():
-            evaluation_result = cls.UNSURE
+            return cls.UNSURE
         if result[0].lower() == ideal_mc_answer[0].lower():
-            evaluation_result = cls.CORRECT
-        return evaluation_result
+            return cls.CORRECT
+        return cls.INCORRECT
 
     @classmethod
     def from_question(
@@ -182,6 +179,39 @@ class LitQAEvaluation(IntEnum):
             )
 
         return qa_prompt, llm_from_answer
+
+    @classmethod
+    @lru_cache(maxsize=128)
+    def extract_answer(cls, answer: str) -> str:
+        """Extract the first capital letter or the first character of the first word."""
+        s = re.search(r"([A-Z])\)?", answer, re.DOTALL)
+        if s:
+            return s.group(1)
+        return answer.split()[0][0].upper()
+    
+    @classmethod
+    async def _llm_from_answer(
+        cls,
+        eval_model: LLMModel,
+        qa_prompt: str,
+        answer: Answer | str,
+        ideal_answer: str,
+        unsure_answer: str | None,
+    ) -> LitQAEvaluation:
+        """Inner async function for LLM answer evaluation."""
+        if isinstance(answer, Answer):
+            answer = answer.answer
+        eval_chunk = await eval_model.achat(
+            messages=[
+                {
+                    "role": "user",
+                    "content": EVAL_PROMPT_TEMPLATE.format(qa_prompt=qa_prompt, qa_answer=answer),
+                }
+            ]
+        )
+        if not isinstance(eval_chunk.text, str):
+            raise NotImplementedError(f"Expected evaluation chunk to be a string, not {eval_chunk.text}.")
+        return cls.from_answer(text=eval_chunk.text, ideal_mc_answer=ideal_answer, unsure_mc_answer=unsure_answer)
 
 
 DEFAULT_LABBENCH_HF_HUB_NAME = "futurehouse/lab-bench"
