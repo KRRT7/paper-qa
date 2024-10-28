@@ -8,6 +8,11 @@ from ast import literal_eval
 from collections.abc import Awaitable, Callable, Sequence
 from enum import IntEnum
 from typing import TYPE_CHECKING
+from ldp.utils import discounted_returns
+from paperqa.llms import LLMModel, LiteLLMModel
+from paperqa.prompts import EVAL_PROMPT_TEMPLATE, QA_PROMPT_TEMPLATE
+from paperqa.settings import make_default_litellm_model_list_settings
+from paperqa.types import Answer
 
 try:
     from ldp.utils import discounted_returns
@@ -105,18 +110,20 @@ class LitQAEvaluation(IntEnum):
 
         def extract_answer(answer: str) -> str:
             # first capital letter, like A or A)
-            s = re.search(r"([A-Z])\)?", answer, re.DOTALL)
-            if s is not None:
-                return s.group(1)
-            return answer.split()[0][0].upper()
+            s = re.search(r"([A-Z])\)?", answer)
+            return s.group(1) if s else answer.split()[0][0].upper()
 
-        result = extract_answer(text)
-        evaluation_result = cls.INCORRECT
-        if unsure_mc_answer and result[0].lower() == unsure_mc_answer[0].lower():
-            evaluation_result = cls.UNSURE
-        if result[0].lower() == ideal_mc_answer[0].lower():
-            evaluation_result = cls.CORRECT
-        return evaluation_result
+        result = extract_answer(text).lower()
+        ideal_mc_answer = ideal_mc_answer[0].lower()
+        if unsure_mc_answer:
+            unsure_mc_answer = unsure_mc_answer[0].lower()
+
+        if result == ideal_mc_answer:
+            return cls.CORRECT
+        elif unsure_mc_answer and result == unsure_mc_answer:
+            return cls.UNSURE
+        else:
+            return cls.INCORRECT
 
     @classmethod
     def from_question(
