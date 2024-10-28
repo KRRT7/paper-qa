@@ -46,6 +46,7 @@ from paperqa.types import DocDetails
 from paperqa.utils import ImpossibleParsingError, hexdigest
 
 from .models import SupportsPickle
+from functools import lru_cache
 
 if TYPE_CHECKING:
     from tantivy import IndexWriter
@@ -251,6 +252,7 @@ class SearchIndex:
         return self._index_files
 
     @staticmethod
+    @lru_cache(maxsize=1024)
     def filehash(body: str) -> str:
         return hexdigest(body)
 
