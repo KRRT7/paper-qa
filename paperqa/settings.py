@@ -20,6 +20,7 @@ from pydantic import (
     model_validator,
 )
 from pydantic_settings import BaseSettings, CliSettingsSource, SettingsConfigDict
+from string import Formatter
 
 try:
     from ldp.agent import (
@@ -222,9 +223,7 @@ class _FormatDict(dict):  # noqa: FURB189
 
 def get_formatted_variables(s: str) -> set[str]:
     """Returns the set of variables implied by the format string."""
-    format_dict = _FormatDict()
-    s.format_map(format_dict)
-    return format_dict.key_set
+    return {v[1] for v in Formatter().parse(s) if v[1] is not None}
 
 
 class PromptSettings(BaseModel):
@@ -266,12 +265,10 @@ class PromptSettings(BaseModel):
     @field_validator("summary")
     @classmethod
     def check_summary(cls, v: str) -> str:
-        if not get_formatted_variables(v).issubset(
-            get_formatted_variables(summary_prompt)
-        ):
+        summary_prompt_vars = get_formatted_variables(summary_prompt)
+        if not get_formatted_variables(v).issubset(summary_prompt_vars):
             raise ValueError(
-                "Summary prompt can only have variables:"
-                f" {get_formatted_variables(summary_prompt)}"
+                f"Summary prompt can only have variables: {summary_prompt_vars}"
             )
         return v
 
