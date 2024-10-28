@@ -328,11 +328,17 @@ class GenerateAnswer(NamedTool):
     @classmethod
     def extract_answer_from_message(cls, content: str) -> str:
         """Extract the answer from a message content."""
-        answer, *rest = re.split(
-            pattern=cls.ANSWER_SPLIT_REGEX_PATTERN, string=content, maxsplit=1
-        )
-        if len(rest) != 4 or not cls.did_not_fail_to_answer(answer):  # noqa: PLR2004
+        parts = re.split(cls.ANSWER_SPLIT_REGEX_PATTERN, content, maxsplit=1)
+        
+        if len(parts) < 2:
             return ""
+        
+        answer = parts[0]
+        rest = parts[1]
+
+        if len(rest) != 4 or answer.startswith(cls.FAILED_TO_ANSWER):
+            return ""
+
         return answer
 
 
