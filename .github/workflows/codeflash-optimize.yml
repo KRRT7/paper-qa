@@ -12,11 +12,14 @@ jobs:
     env:
       CODEFLASH_API_KEY: ${{ secrets.CODEFLASH_API_KEY }}
       CODEFLASH_PR_NUMBER: ${{ github.event.number }}
+      PYTHONIOENCODING: "utf8"
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.event.pull_request.head.ref }}
+    
       - name: Install uv
         uses: astral-sh/setup-uv@v3
         with:
