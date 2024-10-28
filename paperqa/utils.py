@@ -12,7 +12,7 @@ import string
 import unicodedata
 from collections.abc import Collection, Coroutine, Iterable, Iterator
 from datetime import datetime
-from functools import reduce
+from functools import lru_cache, reduce
 from http import HTTPStatus
 from pathlib import Path
 from typing import Any, BinaryIO, ClassVar
@@ -92,6 +92,7 @@ def count_pdf_pages(file_path: str | os.PathLike) -> int:
         return len(doc)
 
 
+@lru_cache(maxsize=128)
 def hexdigest(data: str | bytes) -> str:
     if isinstance(data, str):
         return hashlib.md5(data.encode("utf-8")).hexdigest()  # noqa: S324
