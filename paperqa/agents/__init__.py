@@ -136,7 +136,6 @@ def build_index(
         settings.agent.index.name = None
     elif isinstance(index_name, str):
         settings.agent.index.name = index_name
-    configure_cli_logging(settings)
     if directory:
         settings.agent.index.paper_directory = directory
     return get_loop().run_until_complete(get_directory_index(settings=settings))
