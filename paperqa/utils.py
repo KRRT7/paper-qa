@@ -64,9 +64,8 @@ def maybe_is_text(s: str, thresh: float = 2.5) -> bool:
 
 
 def maybe_is_pdf(file: BinaryIO) -> bool:
-    magic_number = file.read(4)
-    file.seek(0)
-    return magic_number == b"%PDF"
+    start = file.read(4)
+    return start == b"%PDF"
 
 
 def maybe_is_html(file: BinaryIO) -> bool:
