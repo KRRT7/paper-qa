@@ -1,3 +1,4 @@
+from __future__ import annotations
 import asyncio
 import importlib.resources
 import os
@@ -20,6 +21,7 @@ from pydantic import (
     model_validator,
 )
 from pydantic_settings import BaseSettings, CliSettingsSource, SettingsConfigDict
+from functools import lru_cache
 
 try:
     from ldp.agent import (
@@ -220,6 +222,7 @@ class _FormatDict(dict):  # noqa: FURB189
         return key
 
 
+@lru_cache()
 def get_formatted_variables(s: str) -> set[str]:
     """Returns the set of variables implied by the format string."""
     format_dict = _FormatDict()
