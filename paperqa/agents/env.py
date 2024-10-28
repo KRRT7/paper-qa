@@ -34,33 +34,33 @@ def settings_to_tools(
 ) -> list[Tool]:
     """
     Convert a Settings into tools, confirming the gen_answer tool is present.
-
     NOTE: the last element of the return will always be GenerateAnswer.
     """
     llm_model = llm_model or settings.get_llm()
     summary_llm_model = summary_llm_model or settings.get_summary_llm()
     embedding_model = embedding_model or settings.get_embedding_model()
-    tools: list[Tool] = []
+    
+    tools = []
     has_answer_tool = False
-    for tool_type in (
-        (PaperSearch, GatherEvidence, GenerateAnswer)
-        if settings.agent.tool_names is None
-        else [
-            AVAILABLE_TOOL_NAME_TO_CLASS[name]
-            for name in set(settings.agent.tool_names)
-        ]
-    ):
-        if issubclass(tool_type, PaperSearch):
+    tool_names = settings.agent.tool_names
+    current_year = get_year()  # Avoid repeated function calls
+    
+    tool_classes = (
+        (PaperSearch, GatherEvidence, GenerateAnswer) if tool_names is None else 
+        [AVAILABLE_TOOL_NAME_TO_CLASS[name] for name in set(tool_names)]
+    )
+
+    for tool_class in tool_classes:
+        if issubclass(tool_class, PaperSearch):
             tool = Tool.from_function(
-                PaperSearch(
-                    settings=settings, embedding_model=embedding_model
-                ).paper_search
+                PaperSearch(settings=settings, embedding_model=embedding_model).paper_search
             )
             for pname in ("min_year", "max_year"):
-                tool.info.parameters.properties[pname]["description"] = cast(
-                    str, tool.info.parameters.properties[pname]["description"]
-                ).format(current_year=get_year())
-        elif issubclass(tool_type, GatherEvidence):
+                tool.info.parameters.properties[pname]["description"] = (
+                    tool.info.parameters.properties[pname]["description"]
+                    .format(current_year=current_year)
+                )
+        elif issubclass(tool_class, GatherEvidence):
             tool = Tool.from_function(
                 GatherEvidence(
                     settings=settings,
@@ -68,7 +68,7 @@ def settings_to_tools(
                     embedding_model=embedding_model,
                 ).gather_evidence
             )
-        elif issubclass(tool_type, GenerateAnswer):
+        elif issubclass(tool_class, GenerateAnswer):
             tool = Tool.from_function(
                 GenerateAnswer(
                     settings=settings,
@@ -78,16 +78,19 @@ def settings_to_tools(
                 ).gen_answer
             )
         else:
-            raise NotImplementedError(f"Didn't handle tool type {tool_type}.")
-        if tool.info.name == GenerateAnswer.gen_answer.__name__:
+            raise NotImplementedError(f"Didn't handle tool class {tool_class}.")
+        
+        # Always insert GenerateAnswer at the end
+        if issubclass(tool_class, GenerateAnswer):
             tools.append(tool)
             has_answer_tool = True
         else:
+            # Insert non-GenerateAnswer tools at the beginning
             tools.insert(0, tool)
+    
     if not has_answer_tool:
-        raise ValueError(
-            f"{GenerateAnswer.gen_answer.__name__} must be one of the tools."
-        )
+        raise ValueError(f"{GenerateAnswer.gen_answer.__name__} must be one of the tools.")
+    
     return tools
 
 
