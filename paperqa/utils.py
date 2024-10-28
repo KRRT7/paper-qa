@@ -45,8 +45,8 @@ class ImpossibleParsingError(Exception):
 
 def name_in_text(name: str, text: str) -> bool:
     sname = name.strip()
-    pattern = rf"\b({re.escape(sname)})\b(?!\w)"
-    return bool(re.search(pattern, text))
+    pattern = re.compile(rf"\b{re.escape(sname)}\b", re.A)
+    return bool(pattern.search(text))
 
 
 def maybe_is_text(s: str, thresh: float = 2.5) -> bool:
