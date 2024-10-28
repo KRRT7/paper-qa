@@ -23,6 +23,7 @@ from paperqa.utils import (
 from .client_models import DOIOrTitleBasedProvider, DOIQuery, TitleAuthorQuery
 from .crossref import doi_to_bibtex
 from .exceptions import DOINotFoundError, make_flaky_ssl_error_predicate
+from functools import partial
 
 logger = logging.getLogger(__name__)
 
@@ -130,21 +131,14 @@ async def _s2_get_with_retrying(url: str, **get_kwargs) -> dict[str, Any]:
 def s2_authors_match(authors: list[str], data: dict) -> bool:
     """Check if the authors in the data match the authors in the paper."""
     AUTHOR_NAME_MIN_LENGTH = 2
-    s2_authors_noinit = [
-        " ".join([w for w in a["name"].split() if len(w) > AUTHOR_NAME_MIN_LENGTH])
-        for a in data["authors"]
-    ]
-    authors_noinit = [
-        " ".join([w for w in a.split() if len(w) > AUTHOR_NAME_MIN_LENGTH])
-        for a in authors
-    ]
-    # Note: we expect the number of authors to be possibly different
-    return any(
-        starmap(
-            lambda x, y: x in y or y in x,
-            zip(s2_authors_noinit, authors_noinit, strict=False),
-        )
-    )
+    filter_auth_names = lambda name: " ".join(w for w in name.split() if len(w) > AUTHOR_NAME_MIN_LENGTH)
+
+    # Use a generator instead of a list comprehension
+    s2_authors_noinit_gen = (filter_auth_names(a["name"]) for a in data["authors"])
+    authors_noinit_gen = (filter_auth_names(a) for a in authors)
+
+    # Use any() efficiently with starmap, zip generators
+    return any(starmap(partial(substr_present), zip(s2_authors_noinit_gen, authors_noinit_gen, strict=False)))
 
 
 async def parse_s2_to_doc_details(
@@ -336,6 +330,9 @@ async def get_s2_doc_details_from_title(
         title_similarity_threshold=title_similarity_threshold,
         fields=s2_fields,
     )
+
+def substr_present(x: str, y: str) -> bool:
+    return x in y or y in x
 
 
 class SemanticScholarProvider(DOIOrTitleBasedProvider):
