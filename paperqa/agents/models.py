@@ -174,13 +174,15 @@ class SimpleProfiler(BaseModel):
             logger.warning(f"Timer {name} not running")
 
     def results(self) -> dict[str, dict[str, float]]:
+        timers = self.timers  # Cache the attribute lookup
         result = {}
-        for name, durations in self.timers.items():
-            mean = sum(durations) / len(durations)
+        for name, durations in timers.items():
+            total_time = sum(durations)
+            mean_time = total_time / len(durations)
             result[name] = {
                 "low": min(durations),
-                "mean": mean,
+                "mean": mean_time,
                 "max": max(durations),
-                "total": sum(durations),
+                "total": total_time,
             }
         return result
