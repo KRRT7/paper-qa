@@ -51,6 +51,14 @@ def set_llm_answer_ids(answer_id: UUID):
     finally:
         cvar_answer_id.reset(token)
 
+def combined_other_fields(self_other: dict, other_other: dict) -> dict:
+    """Merge 'other' dictionaries and handle special bibtex and sources fields."""
+    merged_other = {**self_other, **other_other}
+    for field in ("bibtex_source", "client_source"):
+        if self_other.get(field) and other_other.get(field):
+            merged_other[field] = self_other[field] + other_other[field]
+    return merged_other
+
 
 class LLMResult(BaseModel):
     """A class to hold the result of a LLM completion.
@@ -454,10 +462,8 @@ class DocDetails(Doc):
     def remove_invalid_authors(cls, data: dict[str, Any]) -> dict[str, Any]:
         """Capture and cull strange author names."""
         if authors := data.get("authors"):
-            data["authors"] = [
-                a for a in authors if a.lower() not in cls.AUTHOR_NAMES_TO_REMOVE
-            ]
-
+            invalid_auth_names = cls.AUTHOR_NAMES_TO_REMOVE
+            data["authors"] = [a for a in authors if a.lower() not in invalid_auth_names]
         return data
 
     @staticmethod
