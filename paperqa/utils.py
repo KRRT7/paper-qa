@@ -70,9 +70,8 @@ def maybe_is_pdf(file: BinaryIO) -> bool:
 
 
 def maybe_is_html(file: BinaryIO) -> bool:
-    magic_number = file.read(4)
-    file.seek(0)
-    return magic_number in {b"<htm", b"<!DO", b"<xsl", b"<!X"}
+    # Use a single file operation to reduce the overhead
+    return file.read(4) in {b"<htm", b"<!DO", b"<xsl", b"<!X"}
 
 
 def strings_similarity(s1: str, s2: str, case_insensitive: bool = True) -> float:
