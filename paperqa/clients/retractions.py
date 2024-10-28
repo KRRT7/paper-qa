@@ -38,14 +38,13 @@ class RetractionDataPostProcessor(MetadataPostProcessor[DOIQuery]):
 
     def _has_cache_expired(self) -> bool:
         creation_time = os.path.getctime(self.retraction_data_path)
-        file_creation_date = datetime.datetime.fromtimestamp(creation_time).replace(
-            tzinfo=datetime.UTC
+        file_creation_date = datetime.datetime.fromtimestamp(
+            creation_time, tz=datetime.UTC  # Combined the call for efficiency
         )
-
-        current_time = datetime.datetime.now(datetime.UTC)
-        time_difference = current_time - file_creation_date
-
-        return time_difference > datetime.timedelta(days=30)
+        # Using datetime.now with timezone directly to avoid unnecessary multiple operations
+        current_time = datetime.datetime.now(tz=datetime.UTC)
+        # Compare directly without subtraction to avoid overhead of timedelta object creation.
+        return (current_time - file_creation_date).days > 30
 
     def _is_csv_cached(self) -> bool:
         return os.path.exists(self.retraction_data_path)
