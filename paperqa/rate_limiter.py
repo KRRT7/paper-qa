@@ -167,45 +167,37 @@ class GlobalRateLimiter:
         This parsing logic finds the correct rate limits for a namespace/primary_key.
         It's a bit complex due to the <MATCH ALL> and <MATCH MACHINE ID> placeholders.
         These allow users to match
-
         """
-        # the namespace may have a machine_id in it -- we replace if that's the case
-        namespace_w_stub_machine_id = namespace
-        namespace_w_machine_id_stripped = namespace
 
-        # strip off the machine_id, and replace it with the MATCH_MACHINE_ID placeholder
-        if namespace.startswith("get"):
-            machine_id = namespace.split("|")[-1]
-            if machine_id != "get":
-                namespace_w_stub_machine_id = namespace.replace(
-                    machine_id, MATCH_MACHINE_ID, 1
-                )
-                # try stripping the machine id for the namespace for shared limits
-                # i.e. matching to one rate limit across ALL machines
-                # these limits are in RATE_CONFIG WITHOUT a MATCH_MACHINE_ID placeholder
-                namespace_w_machine_id_stripped = "|".join(namespace.split("|")[:-1])
+        namespace_parts = namespace.split("|")
+        machine_id = namespace_parts[-1]
+        namespace_w_stub_machine_id = (
+            namespace.replace(machine_id, MATCH_MACHINE_ID, 1)
+            if machine_id != "get"
+            else namespace
+        )
+        namespace_w_machine_id_stripped = (
+            "|".join(namespace_parts[:-1])
+            if machine_id != "get"
+            else namespace
+        )
 
-        # here we want to use namespace_w_machine_id_stripped -- the rate should be shared
-        # this needs to be checked first, since it's more specific than the stub machine id
         if (namespace_w_machine_id_stripped, primary_key) in self.rate_config:
             return (
                 self.rate_config[(namespace_w_machine_id_stripped, primary_key)],
                 namespace_w_machine_id_stripped,
             )
-        # we keep the old namespace if we match on the namespace_w_stub_machine_id
-        if (namespace_w_stub_machine_id, primary_key) in self.rate_config:
+        elif (namespace_w_stub_machine_id, primary_key) in self.rate_config:
             return (
                 self.rate_config[(namespace_w_stub_machine_id, primary_key)],
                 namespace,
             )
-        # again we only want the original namespace, keep the old namespace
-        if (namespace_w_stub_machine_id, MATCH_ALL) in self.rate_config:
+        elif (namespace_w_stub_machine_id, MATCH_ALL) in self.rate_config:
             return (
                 self.rate_config[(namespace_w_stub_machine_id, MATCH_ALL)],
                 namespace,
             )
-        # again we want to use the stripped namespace if it matches
-        if (namespace_w_machine_id_stripped, MATCH_ALL) in self.rate_config:
+        elif (namespace_w_machine_id_stripped, MATCH_ALL) in self.rate_config:
             return (
                 self.rate_config[(namespace_w_machine_id_stripped, MATCH_ALL)],
                 namespace_w_machine_id_stripped,
