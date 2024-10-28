@@ -38,10 +38,7 @@ class RetractionDataPostProcessor(MetadataPostProcessor[DOIQuery]):
 
     def _has_cache_expired(self) -> bool:
         creation_time = os.path.getctime(self.retraction_data_path)
-        file_creation_date = datetime.datetime.fromtimestamp(creation_time).replace(
-            tzinfo=datetime.UTC
-        )
-
+        file_creation_date = datetime.datetime.fromtimestamp(creation_time, tz=datetime.UTC)
         current_time = datetime.datetime.now(datetime.UTC)
         time_difference = current_time - file_creation_date
 
