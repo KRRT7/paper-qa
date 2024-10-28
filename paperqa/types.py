@@ -419,12 +419,8 @@ class DocDetails(Doc):
     def merge_bibtex_entries(entry1: Entry, entry2: Entry) -> Entry:
         """Merge two bibtex entries into one, preferring entry2 fields."""
         merged_entry = Entry(entry1.type)
-
-        for field, value in entry1.fields.items():
-            merged_entry.fields[field] = value
-        for field, value in entry2.fields.items():
-            merged_entry.fields[field] = value
-
+        merged_entry.fields.update(entry1.fields)
+        merged_entry.fields.update(entry2.fields)
         return merged_entry
 
     @staticmethod
