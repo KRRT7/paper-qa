@@ -635,13 +635,16 @@ class DocDetails(Doc):
         inclusion: Collection[str] = [],
     ) -> bool:
         """Determine if we have unfilled attributes."""
+        model_dump = self.model_dump()
         if inclusion:
-            return any(
-                v is None for k, v in self.model_dump().items() if k in inclusion
-            )
-        return any(
-            v is None for k, v in self.model_dump().items() if k not in exclusion
-        )
+            for k in inclusion:
+                if model_dump.get(k) is None:
+                    return True
+            return False
+        for k in self.model_fields:
+            if k not in exclusion and model_dump.get(k) is None:
+                return True
+        return False
 
     def repopulate_doc_id_from_doi(self) -> None:
         # TODO: should this be a hash of the doi?
