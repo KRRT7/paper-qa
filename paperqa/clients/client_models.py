@@ -71,10 +71,11 @@ class DOIQuery(ClientQuery):
             fields.append("doi")
 
         # sometimes the DOI has a URL prefix, remove it
-        remove_urls = ["https://doi.org/", "http://dx.doi.org/"]
-        for url in remove_urls:
-            if data["doi"].startswith(url):
-                data["doi"] = data["doi"].replace(url, "")
+        doi = data["doi"]
+        if doi.startswith("https://doi.org/"):
+            data["doi"] = doi.removeprefix("https://doi.org/")
+        elif doi.startswith("http://dx.doi.org/"):
+            data["doi"] = doi.removeprefix("http://dx.doi.org/")
 
         return data
 
