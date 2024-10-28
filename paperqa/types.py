@@ -437,13 +437,12 @@ class DocDetails(Doc):
     @staticmethod
     def inject_clean_doi_url_into_data(data: dict[str, Any]) -> dict[str, Any]:
         """Ensure doi_url is present in data (since non-default arguments are not included)."""
-        doi_url, doi = data.get("doi_url"), data.get("doi")
+        doi_url = data.get("doi_url")
+        doi = data.get("doi")
 
         if doi and not doi_url:
-            doi_url = "https://doi.org/" + doi
-
-        # ensure the modern doi url is used
-        if doi_url:
+            data["doi_url"] = "https://doi.org/" + doi.lower()
+        elif doi_url:
             data["doi_url"] = doi_url.replace(
                 "http://dx.doi.org/", "https://doi.org/"
             ).lower()
