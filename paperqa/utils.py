@@ -153,23 +153,25 @@ def extract_score(text: str) -> int:
 
 
 def get_citenames(text: str) -> set[str]:
-    # Combined regex for identifying citations (see unit tests for examples)
-    citation_regex = r"\b[\w\-]+\set\sal\.\s\([0-9]{4}\)|\((?:[^\)]*?[a-zA-Z][^\)]*?[0-9]{4}[^\)]*?)\)"
-    results = re.findall(citation_regex, text, flags=re.MULTILINE)
-    # now find None patterns
-    none_citation_regex = r"(\(None[a-f]{0,1} pages [0-9]{1,10}-[0-9]{1,10}\))"
-    none_results = re.findall(none_citation_regex, text, flags=re.MULTILINE)
-    results.extend(none_results)
-    values = []
+    # combined regex pattern to capture both citations and None patterns
+    combined_regex = (
+        r"\b[\w\-]+ et al\. \([0-9]{4}\)"  # capture citations
+        r"|\(None[a-f]{0,1} pages [0-9]{1,10}-[0-9]{1,10}\)"  # capture None patterns
+        r"|\((?:[^\)]*?[a-zA-Z][^\)]*?[0-9]{4}[^\)]*?)\)"  # capture citations with years
+    )
+    
+    results = re.findall(combined_regex, text, flags=re.MULTILINE)
+    values = set()
+
     for citation in results:
         citation = citation.strip("() ")
         for c in re.split(",|;", citation):
+            c = c.strip()
             if c == "Extra background information":
                 continue
-            # remove leading/trailing spaces
-            c = c.strip()
-            values.append(c)
-    return set(values)
+            values.add(c)
+
+    return values
 
 
 def extract_doi(reference: str) -> str:
