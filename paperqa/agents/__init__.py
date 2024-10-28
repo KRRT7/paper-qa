@@ -65,14 +65,14 @@ def is_running_under_cli() -> bool:
 
 def set_up_rich_handler(install: bool = True) -> RichHandler:
     """Add a RichHandler to the paper-qa "root" logger, and return it."""
+    global _handler_installed
     rich_handler = RichHandler(
         rich_tracebacks=True, markup=True, show_path=False, show_level=False
     )
     rich_handler.setFormatter(logging.Formatter("%(message)s", datefmt="[%X]"))
-    if install and not any(
-        isinstance(h, RichHandler) for h in _PAPERQA_PKG_ROOT_LOGGER.handlers
-    ):
+    if install and not _handler_installed:
         _PAPERQA_PKG_ROOT_LOGGER.addHandler(rich_handler)
+        _handler_installed = True
     return rich_handler
 
 
