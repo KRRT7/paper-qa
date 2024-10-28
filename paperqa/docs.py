@@ -460,14 +460,19 @@ class Docs(BaseModel):
         name = docname if name is None else name
 
         if name is not None:
-            doc = next((doc for doc in self.docs.values() if doc.docname == name), None)
+            doc = None
+            for document in self.docs.values():
+                if document.docname == name:
+                    doc = document
+                    break
             if doc is None:
                 return
             self.docnames.remove(doc.docname)
             dockey = doc.dockey
+
         del self.docs[dockey]
         self.deleted_dockeys.add(dockey)
-        self.texts = list(filter(lambda x: x.doc.dockey != dockey, self.texts))
+        self.texts = [text for text in self.texts if text.doc.dockey != dockey]
 
     async def _build_texts_index(self, embedding_model: EmbeddingModel) -> None:
         texts = [t for t in self.texts if t not in self.texts_index]
