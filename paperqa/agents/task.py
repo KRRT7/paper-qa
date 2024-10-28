@@ -1,3 +1,16 @@
+import re
+from abc import ABC
+from aviary.env import TaskDataset
+from aviary.tools import ToolResponseMessage
+from collections.abc import Sequence
+from ldp.alg import ComputeTrajectoryMetricsMixin
+from ldp.data_structures import Trajectory
+from paperqa.agents.models import QueryRequest
+from paperqa.agents.tools import GenerateAnswer
+from paperqa.docs import Docs
+from paperqa.litqa import DEFAULT_EVAL_MODEL_NAME, DEFAULT_REWARD_DISTRIBUTION
+from paperqa.llms import LLMModel
+
 __all__ = [
     "ENV_NAME",
     "TASK_DATASET_NAME",
@@ -246,46 +259,34 @@ class LitQATaskDataset(
     def compute_trajectory_metrics(
         self, trajectories: "Sequence[Trajectory]"
     ) -> dict[str, list[float]]:
-        total_paper_count: list[float] = []
-        relevant_paper_count: list[float] = []
-        evidence_count: list[float] = []
+        total_paper_count = []
+        relevant_paper_count = []
+        evidence_count = []
+
+        append_to_lists = lambda t, sa: (
+            total_paper_count.append(sum(int(sa[1]) for sa in t) / len(t) if t else 0),
+            relevant_paper_count.append(sum(int(sa[2]) for sa in t) / len(t) if t else 0),
+            evidence_count.append(sum(int(sa[3]) for sa in t) / len(t) if t else 0)
+        )
+
         for t in trajectories:
             split_answers = [
-                split_answers
-                for split_answers in (
-                    re.split(
-                        pattern=GenerateAnswer.ANSWER_SPLIT_REGEX_PATTERN,
-                        string=obs.content,
-                    )
-                    for obs in t.steps[-1].next_observation
-                    if (
-                        isinstance(obs, ToolResponseMessage)
-                        and obs.name == GenerateAnswer.TOOL_FN_NAME
-                    )
-                )
-                # Filter for places where the regex split succeeded
-                if len(split_answers) >= 4  # noqa: PLR2004
+                re.split(GenerateAnswer.ANSWER_SPLIT_REGEX_PATTERN, obs.content)
+                for obs in t.steps[-1].next_observation
+                if isinstance(obs, ToolResponseMessage) and obs.name == GenerateAnswer.TOOL_FN_NAME
+                and len(re.split(GenerateAnswer.ANSWER_SPLIT_REGEX_PATTERN, obs.content)) >= 4
             ]
-            for i, metric_list in enumerate(
-                (total_paper_count, relevant_paper_count, evidence_count),
-                start=1,  # Regex extraction of status starts after answer
-            ):
-                metric_list.append(  # Use mean to allow for multiple answers
-                    sum(int(sa[i]) for sa in split_answers) / len(split_answers)
-                    if split_answers  # Avoid div0 (when no answer was made)
-                    else 0
-                )
+            append_to_lists(split_answers, split_answers)
+
+        correct = [int(t.steps[-1].reward == self._rewards[0]) for t in trajectories]
+        correct_unsure = [int(t.steps[-1].reward in {self._rewards[0], self._rewards[1]}) for t in trajectories]
+
         return super().compute_trajectory_metrics(trajectories) | {
             "total_paper_count": total_paper_count,
             "relevant_paper_count": relevant_paper_count,
             "evidence_count": evidence_count,
-            "correct": [
-                int(t.steps[-1].reward == self._rewards[0]) for t in trajectories
-            ],
-            "correct_unsure": [
-                int(t.steps[-1].reward in {self._rewards[0], self._rewards[1]})
-                for t in trajectories
-            ],
+            "correct": correct,
+            "correct_unsure": correct_unsure,
         }
 
 
