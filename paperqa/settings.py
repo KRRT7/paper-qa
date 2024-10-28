@@ -1,3 +1,4 @@
+from __future__ import annotations
 import asyncio
 import importlib.resources
 import os
@@ -693,21 +694,21 @@ class Settings(BaseSettings):
 
         This index is where parsings are stored based on parsing/embedding strategy.
         """
-        if isinstance(self.agent.index.paper_directory, pathlib.Path):
-            # Here we use an absolute path so that where the user locally
-            # uses '.', two different folders will make different indexes
-            first_segment: str = str(self.agent.index.paper_directory.absolute())
-        else:
-            first_segment = str(self.agent.index.paper_directory)
-        segments = [
-            first_segment,
-            str(self.agent.index.use_absolute_paper_directory),
-            self.embedding,
-            str(self.parsing.chunk_size),
-            str(self.parsing.overlap),
-            self.parsing.chunking_algorithm,
-        ]
-        return f"pqa_index_{hexdigest('|'.join(segments))}"
+        # Combine the condition and assignment to minimize execution steps
+        first_segment = str(self.agent.index.paper_directory.absolute() 
+                            if isinstance(self.agent.index.paper_directory, pathlib.Path) 
+                            else self.agent.index.paper_directory)
+        
+        # Directly create the concatenated string for hashing, reducing intermediate steps
+        segments = '|'.join([first_segment,
+                             str(self.agent.index.use_absolute_paper_directory),
+                             self.embedding,
+                             str(self.parsing.chunk_size),
+                             str(self.parsing.overlap),
+                             self.parsing.chunking_algorithm])
+        
+        # Create the index name using the hexdigest function
+        return f"pqa_index_{hexdigest(segments)}"
 
     @classmethod
     def from_name(
