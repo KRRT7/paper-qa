@@ -66,16 +66,17 @@ class DOIQuery(ClientQuery):
     @model_validator(mode="before")
     @classmethod
     def add_doi_to_fields_and_validate(cls, data: dict[str, Any]) -> dict[str, Any]:
-
+        
         if (fields := data.get("fields")) and "doi" not in fields:
             fields.append("doi")
-
+        
         # sometimes the DOI has a URL prefix, remove it
-        remove_urls = ["https://doi.org/", "http://dx.doi.org/"]
-        for url in remove_urls:
-            if data["doi"].startswith(url):
-                data["doi"] = data["doi"].replace(url, "")
-
+        doi = data["doi"]
+        if doi.startswith("https://doi.org/"):
+            data["doi"] = doi[16:]  # Length of "https://doi.org/" is 16
+        elif doi.startswith("http://dx.doi.org/"):
+            data["doi"] = doi[18:]  # Length of "http://dx.doi.org/" is 18
+        
         return data
 
 
