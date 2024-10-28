@@ -377,9 +377,8 @@ class SearchIndex:
         return None
 
     def clean_query(self, query: str) -> str:
-        for replace in ("*", "[", "]", ":", "(", ")", "{", "}", "~", '"'):
-            query = query.replace(replace, "")
-        return query
+        # Join the characters to be removed into a single string, then translate them to empty strings.
+        return query.translate(str.maketrans("", "", '*[]:(){}~"'))
 
     async def query(
         self,
