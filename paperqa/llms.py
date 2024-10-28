@@ -131,19 +131,28 @@ class LiteLLMEmbeddingModel(EmbeddingModel):
         """Truncate texts if they are too large by using litellm cost map."""
         if self.name not in MODEL_COST_MAP:
             return texts
+        
         max_tokens = MODEL_COST_MAP[self.name]["max_input_tokens"]
-        # heuristic about ratio of tokens to characters
         conservative_char_token_ratio = 3
         maybe_too_large = max_tokens * conservative_char_token_ratio
-        if any(len(t) > maybe_too_large for t in texts):
-            try:
-                enct = tiktoken.encoding_for_model("cl100k_base")
-                enc_batch = enct.encode_ordinary_batch(texts)
-                return [enct.decode(t[:max_tokens]) for t in enc_batch]
-            except KeyError:
-                return [t[: max_tokens * conservative_char_token_ratio] for t in texts]
 
-        return texts
+        large_texts_indices = [i for i, t in enumerate(texts) if len(t) > maybe_too_large]
+        if not large_texts_indices:
+            return texts
+
+        truncated_texts = texts[:]
+        try:
+            enct = tiktoken.encoding_for_model("cl100k_base")
+            encode_texts = [texts[i] for i in large_texts_indices]
+            enc_batch = enct.encode_ordinary_batch(encode_texts)
+            max_truncated_texts = [enct.decode(t[:max_tokens]) for t in enc_batch]
+            for i, truncated_text in zip(large_texts_indices, max_truncated_texts):
+                truncated_texts[i] = truncated_text
+        except KeyError:
+            for i in large_texts_indices:
+                truncated_texts[i] = texts[i][: max_tokens * conservative_char_token_ratio]
+
+        return truncated_texts
 
     async def embed_documents(
         self, texts: list[str], batch_size: int = 16
