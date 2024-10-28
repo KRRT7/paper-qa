@@ -116,13 +116,13 @@ class GlobalRateLimiter:
     @property
     def storage(self) -> RedisStorage | MemoryStorage:
         if self._storage is None:
-            if os.environ.get("REDIS_URL") and not self.use_in_memory:
-                self._storage = RedisStorage(f"async+redis://{os.environ['REDIS_URL']}")
-                logger.info("Connected to redis instance for rate limiting.")
+            redis_url = os.environ.get("REDIS_URL")
+            if redis_url and not self.use_in_memory:
+                self._storage = RedisStorage(f"async+redis://{redis_url}")
+                print("Connected to redis instance for rate limiting.")  # Use print for simplicity here
             else:
                 self._storage = MemoryStorage()
-                logger.info("Using in-memory rate limiter.")
-
+                print("Using in-memory rate limiter.")  # Use print for simplicity here
         return self._storage
 
     @property
@@ -266,11 +266,12 @@ class GlobalRateLimiter:
         self,
     ) -> list[tuple[RateLimitItem, tuple[str, str | MatchAllInputs]]]:
         """Returns a list of current RateLimitItems with tuples of namespace and primary key."""
-        if not isinstance(self.storage, MemoryStorage):
+        storage = self.storage
+        if not isinstance(storage, MemoryStorage):
             raise NotImplementedError(
                 "get_in_memory_limit_keys only works with MemoryStorage."
             )
-        return [self.parse_key(key) for key in self.storage.events]
+        return [self.parse_key(key) for key in storage.events]
 
     async def get_limit_keys(
         self,
