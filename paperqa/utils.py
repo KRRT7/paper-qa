@@ -52,13 +52,17 @@ def name_in_text(name: str, text: str) -> bool:
 def maybe_is_text(s: str, thresh: float = 2.5) -> bool:
     if not s:
         return False
+    
+    length = len(s)
+    if length == 0:
+        return False
+    
+    # Calculate the frequency of characters in the string
+    freq = {c: s.count(c) for c in string.printable if c in s}
+    
     # Calculate the entropy of the string
-    entropy = 0.0
-    for c in string.printable:
-        p = s.count(c) / len(s)
-        if p > 0:
-            entropy += -p * math.log2(p)
-
+    entropy = sum(-p * math.log2(p) for p in (count / length for count in freq.values()))
+    
     # Check if the entropy is within a reasonable range for text
     return entropy > thresh
 
