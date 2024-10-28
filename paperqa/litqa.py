@@ -8,6 +8,7 @@ from ast import literal_eval
 from collections.abc import Awaitable, Callable, Sequence
 from enum import IntEnum
 from typing import TYPE_CHECKING
+from ldp.utils import discounted_returns
 
 try:
     from ldp.utils import discounted_returns
@@ -86,11 +87,12 @@ class LitQAEvaluation(IntEnum):
         discount: float = 1.0,
     ) -> list[float]:
         try:
-            return discounted_returns(
-                [i * rewards[self.value] for i in range(num_steps, 0, -1)],
-                terminated=[False] * (num_steps - 1) + [True],
-                discount=discount,
-            )
+            # Pre-calculate reward once outside the loop
+            reward = rewards[self.value]
+            multiplied_rewards = [(i * reward) for i in range(num_steps, 0, -1)]
+            
+            terminated = [False] * (num_steps - 1) + [True]
+            return discounted_returns(multiplied_rewards, terminated=terminated, discount=discount)
         except TypeError as exc:
             raise ImportError(
                 "Making discounted returns requires the 'ldp' extra for 'ldp'. Please:"
