@@ -6,7 +6,7 @@ import warnings
 from collections.abc import Callable, Mapping
 from enum import StrEnum
 from pydoc import locate
-from typing import TYPE_CHECKING, Any, ClassVar, Self, assert_never, cast
+from typing import NoReturn, TYPE_CHECKING, Any, ClassVar, Self, assert_never, cast
 
 import anyio
 from aviary.tools import ToolSelector
@@ -20,6 +20,7 @@ from pydantic import (
     model_validator,
 )
 from pydantic_settings import BaseSettings, CliSettingsSource, SettingsConfigDict
+from paperqa.version import __version__
 
 try:
     from ldp.agent import (
@@ -192,7 +193,7 @@ class ParsingSettings(BaseModel):
                 f"{self.parser_version_string}|{chunking_selection.value}"
                 f"|tokens={self.chunk_size}|overlap={self.overlap}"
             )
-        assert_never(chunking_selection)
+        return self._assert_never(chunking_selection)
 
     @property
     def parser_version_string(self) -> str:
@@ -207,6 +208,9 @@ class ParsingSettings(BaseModel):
                 _get_parse_type(p, self) for p in self.chunking_algorithm.valid_parsings
             }
         )
+
+    def _assert_never(self, chunking_selection: NoReturn) -> NoReturn:
+        raise ValueError(f"Unexpected chunking selection: {chunking_selection}")
 
 
 class _FormatDict(dict):  # noqa: FURB189
