@@ -122,9 +122,8 @@ class LiteLLMEmbeddingModel(EmbeddingModel):
     @classmethod
     def set_up_default_config(cls, value: dict[str, Any]) -> dict[str, Any]:
         if "kwargs" not in value:
-            value["kwargs"] = get_litellm_retrying_config(
-                timeout=120,  # 2-min timeout seemed reasonable
-            )
+            # Since this value is fixed, avoid the function call and directly set the value
+            value["kwargs"] = {"num_retries": 3, "timeout": 120}  # 2-min timeout seemed reasonable
         return value
 
     def _truncate_if_large(self, texts: list[str]) -> list[str]:
