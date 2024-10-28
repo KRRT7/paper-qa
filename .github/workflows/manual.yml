@@ -1,0 +1,33 @@
+name: Codeflash Manual
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  optimize:
+    name: Optimize all the code in the repository
+    runs-on: ubuntu-latest
+    env:
+      CODEFLASH_API_KEY: ${{ secrets.CODEFLASH_API_KEY }}
+      CODEFLASH_PR_NUMBER: ${{ github.event.number }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.4.27"
+
+      - name: uv python setup
+        run: uv sync --python-preference=only-managed
+
+      - name: uv sync deps
+        run: uv export --only-dev | uv pip sync -
+
+      - name: Run Codeflash to optimize code
+        id: optimize_code
+        run: |
+          uv run codeflash --all

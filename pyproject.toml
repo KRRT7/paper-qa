@@ -79,6 +79,16 @@ repository = "https://github.com/Future-House/paper-qa"
 [tool.black]
 preview = true
 
+[tool.codeflash]
+# All paths are relative to this pyproject.toml's directory.
+module-root = "paperqa"
+tests-root = "tests"
+test-framework = "pytest"
+ignore-paths = []
+formatter-cmds = ["ruff check --exit-zero --fix $file", "ruff format $file"]
+disable-imports-sorting = true
+disable-telemetry = true
+
 [tool.codespell]
 check-filenames = true
 check-hidden = true
@@ -235,7 +245,9 @@ min-similarity-lines = 12
 [tool.pytest.ini_options]
 # Add the specified OPTS to the set of command line arguments as if they had been
 # specified by the user.
-addopts = "--typeguard-packages=paperqa"
+addopts = "-p no:sugar"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
 # Sets a list of filters and actions that should be taken for matched warnings.
 # By default all warnings emitted during the test session will be displayed in
 # a summary at the end of the test session.
@@ -406,6 +418,7 @@ trailing_comma_inline_array = true
 
 [tool.uv]
 dev-dependencies = [
+    "codeflash>=0.7",  # Pin to keep recent
     "ipython>=8",  # Pin to keep recent
     "mypy>=1.8",  # Pin for mutable-override
     "paper-qa[datasets,ldp,typing,zotero,local]",
