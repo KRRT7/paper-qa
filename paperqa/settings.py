@@ -1,3 +1,4 @@
+from __future__ import annotations
 import asyncio
 import importlib.resources
 import os
@@ -772,36 +773,32 @@ class Settings(BaseSettings):
         )
 
     def get_agent_llm(self) -> LiteLLMModel:
-        return LiteLLMModel(
-            name=self.agent.agent_llm,
-            config=self.agent.agent_llm_config
-            or make_default_litellm_model_list_settings(
-                self.agent.agent_llm, self.temperature
-            ),
-        )
+        agent_llm = self.agent.agent_llm
+        config = self.agent.agent_llm_config
+        if config is None:
+            config = make_default_litellm_model_list_settings(agent_llm, self.temperature)
+        return LiteLLMModel(name=agent_llm, config=config)
 
     def get_embedding_model(self) -> EmbeddingModel:
         return embedding_model_factory(self.embedding, **(self.embedding_config or {}))
 
     def make_aviary_tool_selector(self, agent_type: str | type) -> ToolSelector | None:
         """Attempt to convert the input agent type to an aviary ToolSelector."""
-        if agent_type is ToolSelector or (
-            isinstance(agent_type, str)
-            and (
-                agent_type == ToolSelector.__name__
-                or (
-                    agent_type.startswith(
-                        ToolSelector.__module__.split(".", maxsplit=1)[0]
-                    )
-                    and locate(agent_type) is ToolSelector
-                )
-            )
-        ):
+        if agent_type is ToolSelector:
             return ToolSelector(
                 model_name=self.agent.agent_llm,
                 acompletion=self.get_agent_llm().router.acompletion,
                 **(self.agent.agent_config or {}),
             )
+        if isinstance(agent_type, str):
+            if (agent_type == ToolSelector.__name__
+                    or (agent_type.startswith(ToolSelector.__module__.split(".", maxsplit=1)[0])
+                        and locate(agent_type) is ToolSelector)):
+                return ToolSelector(
+                    model_name=self.agent.agent_llm,
+                    acompletion=self.get_agent_llm().router.acompletion,
+                    **(self.agent.agent_config or {}),
+                )
         return None
 
     async def make_ldp_agent(
