@@ -668,7 +668,7 @@ class LiteLLMModel(LLMModel):
 
     @property
     def router(self) -> litellm.Router:
-        if self._router is None:
+        if not hasattr(self, '_router') or self._router is None:
             router_kwargs: dict = self.config.get("router_kwargs", {})
             if self.config.get("pass_through_router"):
                 self._router = PassThroughRouter(**router_kwargs)
