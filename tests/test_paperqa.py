@@ -1,5 +1,6 @@
 import contextlib
 import os
+import pathlib
 import pickle
 import textwrap
 from collections.abc import AsyncIterable
@@ -18,6 +19,7 @@ from paperqa import (
     DocDetails,
     Docs,
     NumpyVectorStore,
+    PQASession,
     Settings,
     Text,
     print_callback,
@@ -42,6 +44,8 @@ from paperqa.utils import (
     strip_citations,
 )
 from tests.conftest import VCR_DEFAULT_MATCH_ON
+
+THIS_MODULE = pathlib.Path(__file__)
 
 
 @pytest.fixture
@@ -504,7 +508,7 @@ async def test_docs_lifecycle(subtests: SubTests, stub_data_dir: Path) -> None:
 def test_evidence(docs_fixture) -> None:
     debug_settings = Settings.from_name("debug")
     evidence = docs_fixture.get_evidence(
-        Answer(question="What does XAI stand for?"),
+        PQASession(question="What does XAI stand for?"),
         settings=debug_settings,
     ).contexts
     assert len(evidence) >= debug_settings.answer.evidence_k
@@ -524,7 +528,7 @@ def test_json_evidence(docs_fixture) -> None:
         " question (integer out of 10)."
     )
     evidence = docs_fixture.get_evidence(
-        Answer(question="Who wrote this article?"),
+        PQASession(question="Who wrote this article?"),
         settings=settings,
     ).contexts
     assert evidence[0].author_name
@@ -991,17 +995,18 @@ def test_chunk_metadata_reader(stub_data_dir: Path) -> None:
     assert metadata.total_parsed_text_length // 3000 <= len(chunk_text)
 
 
+@pytest.mark.flaky(reruns=2, only_rerun=["AssertionError"])  # For couldn't answer
 def test_code() -> None:
-    # load this script
-    doc_path = Path(os.path.abspath(__file__))
     settings = Settings.from_name("fast")
     docs = Docs()
-    docs.add(doc_path, "test_paperqa.py", docname="test_paperqa.py", disable_check=True)
-    assert len(docs.docs) == 1
-    assert (
-        "test_paperqa.py"
-        in docs.query("What file is read in by test_code?", settings=settings).answer
+    # load this script
+    docs.add(
+        THIS_MODULE, "test_paperqa.py", docname="test_paperqa.py", disable_check=True
     )
+    assert len(docs.docs) == 1
+    answer = docs.query("What file is read in by test_code?", settings=settings)
+    assert not answer.could_not_answer, "Expected an answer"
+    assert "test_paperqa.py" in answer.answer
 
 
 def test_zotero() -> None:
@@ -1125,3 +1130,8 @@ def test_case_insensitive_matching():
     assert strings_similarity("my test sentence", "My test sentence") == 1.0
     assert strings_similarity("a b c d e", "a b c f") == 0.5
     assert strings_similarity("A B c d e", "a b c f") == 0.5
+
+
+def test_answer_rename():
+    answer = Answer(question="")
+    assert isinstance(answer, PQASession)

@@ -2,14 +2,19 @@ import logging
 from copy import deepcopy
 from typing import Any, Self, cast
 
-from aviary.env import Environment, Frame
-from aviary.message import Message
-from aviary.tools import Tool, ToolRequestMessage, ToolResponseMessage
+from aviary.core import (
+    Environment,
+    Frame,
+    Message,
+    Tool,
+    ToolRequestMessage,
+    ToolResponseMessage,
+)
 
 from paperqa.docs import Docs
 from paperqa.llms import EmbeddingModel, LiteLLMModel
 from paperqa.settings import Settings
-from paperqa.types import Answer
+from paperqa.types import PQASession
 from paperqa.utils import get_year
 
 from .models import QueryRequest
@@ -123,7 +128,7 @@ class PaperQAEnvironment(Environment[EnvironmentState]):
     def make_initial_state(self) -> EnvironmentState:
         return EnvironmentState(
             docs=self._docs,
-            answer=Answer(
+            answer=PQASession(
                 question=self._query.query,
                 config_md5=self._query.settings.md5,
                 id=self._query.id,
@@ -140,7 +145,7 @@ class PaperQAEnvironment(Environment[EnvironmentState]):
             [
                 Message(
                     content=self._query.settings.agent.agent_prompt.format(
-                        question=self.state.answer.question,
+                        question=self.state.session.question,
                         status=self.state.status,
                         gen_answer_tool_name=GenerateAnswer.TOOL_FN_NAME,
                     ),
@@ -155,7 +160,7 @@ class PaperQAEnvironment(Environment[EnvironmentState]):
     async def step(
         self, action: ToolRequestMessage
     ) -> tuple[list[Message], float, bool, bool]:
-        self.state.answer.add_tokens(action)  # Add usage for action if present
+        self.state.session.add_tokens(action)  # Add usage for action if present
 
         # If the action has empty tool_calls, the agent can later take that into account
         msgs = cast(

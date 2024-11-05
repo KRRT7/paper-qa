@@ -4,15 +4,16 @@ import contextvars
 import logging
 import os
 import re
+import warnings
 from collections.abc import Collection
 from contextlib import contextmanager
 from datetime import datetime
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 from uuid import UUID, uuid4
 
 import litellm  # for cost
 import tiktoken
-from aviary.message import Message
+from aviary.core import Message
 from pybtex.database import BibliographyData, Entry, Person
 from pybtex.database.input.bibtex import Parser
 from pybtex.scanner import PybtexSyntaxError
@@ -40,38 +41,41 @@ DocKey = Any
 logger = logging.getLogger(__name__)
 
 # A context var that will be unique to threads/processes
-cvar_answer_id = contextvars.ContextVar[UUID | None]("answer_id", default=None)
+cvar_session_id = contextvars.ContextVar[UUID | None]("session_id", default=None)
 
 
 @contextmanager
-def set_llm_answer_ids(answer_id: UUID):
-    token = cvar_answer_id.set(answer_id)
+def set_llm_session_ids(session_id: UUID):
+    token = cvar_session_id.set(session_id)
     try:
         yield
     finally:
-        cvar_answer_id.reset(token)
+        cvar_session_id.reset(token)
 
 
 class LLMResult(BaseModel):
     """A class to hold the result of a LLM completion.
 
-    To associate a group of LLMResults, you can use the `set_llm_answer_ids` context manager:
+    To associate a group of LLMResults, you can use the `set_llm_session_ids` context manager:
 
     ```python
-    my_answer_id = uuid4()
-    with set_llm_answer_ids(my_answer_id):
+    my_session_id = uuid4()
+    with set_llm_session_ids(my_session_id):
         # code that generates LLMResults
         pass
     ```
 
-    and all the LLMResults generated within the context will have the same `answer_id`.
+    and all the LLMResults generated within the context will have the same `session_id`.
     This can be combined with LLMModels `llm_result_callback` to store all LLMResults.
     """
 
+    model_config = ConfigDict(populate_by_name=True)
+
     id: UUID = Field(default_factory=uuid4)
-    answer_id: UUID | None = Field(
-        default_factory=cvar_answer_id.get,
+    session_id: UUID | None = Field(
+        default_factory=cvar_session_id.get,
         description="A persistent ID to associate a group of LLMResults",
+        alias="answer_id",
     )
     name: str | None = None
     prompt: str | list[dict] | None = Field(
@@ -149,10 +153,10 @@ class Context(BaseModel):
         return self.context
 
 
-class Answer(BaseModel):
-    """A class to hold the answer to a question."""
+class PQASession(BaseModel):
+    """A class to hold session about researching/answering."""
 
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
 
     id: UUID = Field(default_factory=uuid4)
     question: str
@@ -246,6 +250,17 @@ class Answer(BaseModel):
     @property
     def could_not_answer(self) -> bool:
         return "cannot answer" in self.answer.lower()
+
+
+# for backwards compatibility
+class Answer(PQASession):
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "The 'Answer' class is deprecated and will be removed in future versions. Use 'PQASession' instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)
 
 
 class ChunkMetadata(BaseModel):
@@ -360,8 +375,10 @@ class DocDetails(Doc):
     file_location: str | os.PathLike | None = None
     license: str | None = Field(
         default=None,
-        description="string indicating license."
-        " Should refer specifically to pdf_url (since that could be preprint). None means unknown/unset.",
+        description=(
+            "string indicating license. Should refer specifically to pdf_url (since"
+            " that could be preprint). None means unknown/unset."
+        ),
     )
     pdf_url: str | None = None
     other: dict[str, Any] = Field(
@@ -454,8 +471,11 @@ class DocDetails(Doc):
     def remove_invalid_authors(cls, data: dict[str, Any]) -> dict[str, Any]:
         """Capture and cull strange author names."""
         if authors := data.get("authors"):
+            # On 10/29/2024 while indexing 19k PDFs, a provider (unclear which one)
+            # returned an author of None. The vast majority of the time authors are str
+            authors = cast(list[str | None], authors)
             data["authors"] = [
-                a for a in authors if a.lower() not in cls.AUTHOR_NAMES_TO_REMOVE
+                a for a in authors if a and a.lower() not in cls.AUTHOR_NAMES_TO_REMOVE
             ]
 
         return data
@@ -612,8 +632,8 @@ class DocDetails(Doc):
 
         if self.source_quality_message:
             return (
-                f"{self.citation} This article has {self.citation_count} citations and is"
-                f" from a {self.source_quality_message}."
+                f"{self.citation} This article has {self.citation_count} citations and"
+                f" is from a {self.source_quality_message}."
             )
         return f"{self.citation} This article has {self.citation_count} citations."
 

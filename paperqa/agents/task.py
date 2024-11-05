@@ -15,9 +15,15 @@ from copy import deepcopy
 from enum import StrEnum
 from typing import TYPE_CHECKING, Any, Self, assert_never
 
-from aviary.env import ENV_REGISTRY, TASK_DATASET_REGISTRY, Frame, TaskDataset
-from aviary.message import Message
-from aviary.tools import ToolRequestMessage, ToolResponseMessage
+from aviary.core import (
+    TASK_DATASET_REGISTRY,
+    Frame,
+    Message,
+    TaskDataset,
+    ToolRequestMessage,
+    ToolResponseMessage,
+)
+from aviary.env import ENV_REGISTRY
 
 from paperqa.types import DocDetails
 
@@ -40,7 +46,7 @@ from paperqa.litqa import (
     read_litqa_v2_from_hub,
 )
 from paperqa.llms import EmbeddingModel, LiteLLMModel, LLMModel
-from paperqa.types import Answer
+from paperqa.types import PQASession
 
 from .env import POPULATE_FROM_SETTINGS, PaperQAEnvironment
 from .models import QueryRequest
@@ -63,7 +69,7 @@ class GradablePaperQAEnvironment(PaperQAEnvironment):
         summary_llm_model: LiteLLMModel | None = POPULATE_FROM_SETTINGS,
         embedding_model: EmbeddingModel | None = POPULATE_FROM_SETTINGS,
         evaluation_from_answer: (
-            Callable[[Answer | str], Awaitable[LitQAEvaluation]] | None
+            Callable[[PQASession | str], Awaitable[LitQAEvaluation]] | None
         ) = None,
         sources: str | list[str] | None = None,
         rewards: Sequence[float] = DEFAULT_REWARD_DISTRIBUTION,

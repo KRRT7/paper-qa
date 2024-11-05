@@ -9,7 +9,7 @@ from pydoc import locate
 from typing import TYPE_CHECKING, Any, ClassVar, Self, assert_never, cast
 
 import anyio
-from aviary.tools import ToolSelector
+from aviary.core import ToolSelector
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -93,17 +93,22 @@ class AnswerSettings(BaseModel):
         default=False,
         description="Whether to cite background information provided by model.",
     )
+    get_evidence_if_no_contexts: bool = Field(
+        default=True,
+        description=(
+            "Opt-out flag for allowing answer generation to lazily gather evidence if"
+            " called before evidence was gathered."
+        ),
+    )
 
     @model_validator(mode="after")
     def _deprecated_field(self) -> Self:
         # default is True, so we only warn if it's False
         if not self.evidence_detailed_citations:
             warnings.warn(
-                (
-                    "The 'evidence_detailed_citations' field is deprecated and will be"
-                    " removed in version 6. Adjust 'PromptSettings.context_inner' to remove"
-                    " detailed citations."
-                ),
+                "The 'evidence_detailed_citations' field is deprecated and will be"
+                " removed in version 6. Adjust 'PromptSettings.context_inner' to remove"
+                " detailed citations.",
                 category=DeprecationWarning,
                 stacklevel=2,
             )
@@ -259,8 +264,10 @@ class PromptSettings(BaseModel):
     )
     context_inner: str = Field(
         default=CONTEXT_INNER_PROMPT,
-        description="Prompt for how to format a single context in generate answer. "
-        "This should at least contain key and name.",
+        description=(
+            "Prompt for how to format a single context in generate answer. "
+            "This should at least contain key and name."
+        ),
     )
 
     @field_validator("summary")
@@ -302,9 +309,9 @@ class PromptSettings(BaseModel):
     def check_post(cls, v: str | None) -> str | None:
         if v is not None:
             # kind of a hack to get list of attributes in answer
-            from paperqa.types import Answer
+            from paperqa.types import PQASession
 
-            attrs = set(Answer.model_fields.keys())
+            attrs = set(PQASession.model_fields.keys())
             if not get_formatted_variables(v).issubset(attrs):
                 raise ValueError(f"Post prompt must have input variables: {attrs}")
         return v
@@ -380,7 +387,8 @@ class IndexSettings(BaseModel):
         default=True,
         description=(
             "Whether to sync the index with the paper directory when loading an index."
-            " Setting to True will add or delete index files to match the source paper directory."
+            " Setting to True will add or delete index files to match the source paper"
+            " directory."
         ),
     )
 
@@ -537,11 +545,9 @@ class AgentSettings(BaseModel):
             value = getattr(self, deprecated_field_name)
             if value != type(self).model_fields[deprecated_field_name].default:
                 warnings.warn(
-                    (
-                        f"The {deprecated_field_name!r} field has been moved to"
-                        f" {AgentSettings.__name__},"
-                        " this deprecation will conclude in version 6."
-                    ),
+                    f"The {deprecated_field_name!r} field has been moved to"
+                    f" {AgentSettings.__name__},"
+                    " this deprecation will conclude in version 6.",
                     category=DeprecationWarning,
                     stacklevel=2,
                 )
@@ -667,15 +673,27 @@ class Settings(BaseSettings):
             value = getattr(self, deprecated_field_name)
             if value != type(self).model_fields[deprecated_field_name].default:
                 warnings.warn(
-                    (
-                        f"The {deprecated_field_name!r} field has been moved to"
-                        f" {AgentSettings.__name__},"
-                        " this deprecation will conclude in version 6."
-                    ),
+                    f"The {deprecated_field_name!r} field has been moved to"
+                    f" {AgentSettings.__name__},"
+                    " this deprecation will conclude in version 6.",
                     category=DeprecationWarning,
                     stacklevel=2,
                 )
                 setattr(self.agent.index, new_name, value)  # Propagate to new location
+        return self
+
+    @model_validator(mode="after")
+    def _validate_temperature_for_o1_preview(self) -> Self:
+        """Ensures temperature is 1 if the LLM is 'o1-preview' or 'o1-mini'.
+
+        o1 reasoning models only support temperature = 1.  See
+        https://platform.openai.com/docs/guides/reasoning/quickstart
+        """
+        if self.llm.startswith("o1-") and self.temperature != 1:
+            raise ValueError(
+                "When dealing with OpenAI o1 models, the temperature"
+                f" must be set to 1, {self.temperature} was specified."
+            )
         return self
 
     @computed_field  # type: ignore[prop-decorator]
