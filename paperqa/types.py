@@ -181,7 +181,6 @@ class PQASession(BaseModel):
         """Return the answer as a string."""
         return self.formatted_answer
 
-    @model_validator(mode="before")
     @classmethod
     def remove_computed(cls, data: Any) -> Any:
         if isinstance(data, dict):
@@ -250,6 +249,8 @@ class PQASession(BaseModel):
     @property
     def could_not_answer(self) -> bool:
         return "cannot answer" in self.answer.lower()
+    def __init__(self, data: dict):
+        self.data = self.remove_computed(data)
 
 
 # for backwards compatibility
