@@ -132,18 +132,26 @@ class LiteLLMEmbeddingModel(EmbeddingModel):
         if self.name not in MODEL_COST_MAP:
             return texts
         max_tokens = MODEL_COST_MAP[self.name]["max_input_tokens"]
-        # heuristic about ratio of tokens to characters
         conservative_char_token_ratio = 3
         maybe_too_large = max_tokens * conservative_char_token_ratio
-        if any(len(t) > maybe_too_large for t in texts):
-            try:
-                enct = tiktoken.encoding_for_model("cl100k_base")
-                enc_batch = enct.encode_ordinary_batch(texts)
-                return [enct.decode(t[:max_tokens]) for t in enc_batch]
-            except KeyError:
-                return [t[: max_tokens * conservative_char_token_ratio] for t in texts]
 
-        return texts
+        truncated_texts = []
+        try:
+            enct = tiktoken.encoding_for_model("cl100k_base")
+            for text in texts:
+                if len(text) > maybe_too_large:
+                    tokens = enct.encode(text)
+                    truncated_texts.append(enct.decode(tokens[:max_tokens]))
+                else:
+                    truncated_texts.append(text)
+        except KeyError:
+            for text in texts:
+                if len(text) > maybe_too_large:
+                    truncated_texts.append(text[:max_tokens * conservative_char_token_ratio])
+                else:
+                    truncated_texts.append(text)
+                    
+        return truncated_texts
 
     async def embed_documents(
         self, texts: list[str], batch_size: int = 16
