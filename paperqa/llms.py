@@ -620,44 +620,33 @@ class LiteLLMModel(LLMModel):
     @classmethod
     def maybe_set_config_attribute(cls, data: dict[str, Any]) -> dict[str, Any]:
         """If a user only gives a name, make a sensible config dict for them."""
-        if "config" not in data:
-            data["config"] = {}
-        if "name" in data and "model_list" not in data["config"]:
-            data["config"] = {
-                "model_list": [
-                    {
-                        "model_name": data["name"],
-                        "litellm_params": {"model": data["name"]}
-                        | (
-                            {}
-                            if "gemini" not in data["name"]
-                            else {"safety_settings": DEFAULT_VERTEX_SAFETY_SETTINGS}
-                        ),
-                    }
-                ],
-            } | data["config"]
-
-        if "router_kwargs" not in data["config"]:
-            data["config"]["router_kwargs"] = {}
-        data["config"]["router_kwargs"] = (
-            get_litellm_retrying_config() | data["config"]["router_kwargs"]
-        )
-        if not data["config"].get("pass_through_router"):
-            data["config"]["router_kwargs"] = {"retry_after": 5} | data["config"][
-                "router_kwargs"
-            ]
-
-        # we only support one "model name" for now, here we validate
-        model_list = data["config"]["model_list"]
+        config = data.get("config", {})
+        data["config"] = config
+        
+        if "name" in data:
+            if "model_list" not in config:
+                litellm_params = {"model": data["name"]}
+                if "gemini" in data["name"]:
+                    litellm_params["safety_settings"] = DEFAULT_VERTEX_SAFETY_SETTINGS
+                config["model_list"] = [{"model_name": data["name"], "litellm_params": litellm_params}]
+        
+        router_kwargs = config.get("router_kwargs", {})
+        router_kwargs.update(get_litellm_retrying_config())
+        if not config.get("pass_through_router"):
+            router_kwargs["retry_after"] = 5
+        config["router_kwargs"] = router_kwargs
+        
+        model_list = config.get("model_list")
         if IS_PYTHON_BELOW_312:
             if not isinstance(model_list, list):
                 # Work around https://github.com/BerriAI/litellm/issues/5664
                 raise TypeError(f"model_list must be a list, not a {type(model_list)}.")
         else:
-            # pylint: disable-next=possibly-used-before-assignment
             _DeploymentTypedDictValidator.validate_python(model_list)
+        
         if len({m["model_name"] for m in model_list}) > 1:
             raise ValueError("Only one model name per model list is supported for now.")
+        
         return data
 
     def __getstate__(self):
