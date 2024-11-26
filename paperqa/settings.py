@@ -119,7 +119,7 @@ class ParsingOptions(StrEnum):
     PAPERQA_DEFAULT = "paperqa_default"
 
     def available_for_inference(self) -> list["ParsingOptions"]:
-        return [self.PAPERQA_DEFAULT]  # type: ignore[list-item]
+        return [self.__class__.PAPERQA_DEFAULT]
 
 
 def _get_parse_type(opt: ParsingOptions, config: "ParsingSettings") -> str:
