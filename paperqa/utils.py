@@ -33,6 +33,7 @@ from tenacity import (
     stop_after_attempt,
     wait_incrementing,
 )
+from hashlib import md5
 
 logger = logging.getLogger(__name__)
 
@@ -94,8 +95,8 @@ def count_pdf_pages(file_path: str | os.PathLike) -> int:
 
 def hexdigest(data: str | bytes) -> str:
     if isinstance(data, str):
-        return hashlib.md5(data.encode("utf-8")).hexdigest()  # noqa: S324
-    return hashlib.md5(data).hexdigest()  # noqa: S324
+        data = data.encode("utf-8")
+    return md5(data).hexdigest()  # noqa: S324
 
 
 def md5sum(file_path: str | os.PathLike) -> str:
