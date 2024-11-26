@@ -20,6 +20,7 @@ from pydantic import (
     model_validator,
 )
 from pydantic_settings import BaseSettings, CliSettingsSource, SettingsConfigDict
+from paperqa.version import __version__
 
 try:
     from ldp.agent import (
@@ -192,12 +193,16 @@ class ParsingSettings(BaseModel):
         """Future chunking implementations (i.e. by section) will get an elif clause here."""
         if chunking_selection is None:
             chunking_selection = self.chunking_algorithm
+        
         if chunking_selection == ChunkingOptions.SIMPLE_OVERLAP:
+            parser_version = f"paperqa-{__version__}"
             return (
-                f"{self.parser_version_string}|{chunking_selection.value}"
+                f"{parser_version}|{chunking_selection.value}"
                 f"|tokens={self.chunk_size}|overlap={self.overlap}"
             )
-        assert_never(chunking_selection)
+        
+        # Raising an appropriate exception instead of using assert_never
+        raise ValueError(f"Unhandled chunking_selection: {chunking_selection}")
 
     @property
     def parser_version_string(self) -> str:
