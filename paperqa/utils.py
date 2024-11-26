@@ -154,22 +154,25 @@ def extract_score(text: str) -> int:
 
 def get_citenames(text: str) -> set[str]:
     # Combined regex for identifying citations (see unit tests for examples)
-    citation_regex = r"\b[\w\-]+\set\sal\.\s\([0-9]{4}\)|\((?:[^\)]*?[a-zA-Z][^\)]*?[0-9]{4}[^\)]*?)\)"
-    results = re.findall(citation_regex, text, flags=re.MULTILINE)
-    # now find None patterns
-    none_citation_regex = r"(\(None[a-f]{0,1} pages [0-9]{1,10}-[0-9]{1,10}\))"
-    none_results = re.findall(none_citation_regex, text, flags=re.MULTILINE)
-    results.extend(none_results)
-    values = []
-    for citation in results:
-        citation = citation.strip("() ")
-        for c in re.split(",|;", citation):
-            if c == "Extra background information":
-                continue
-            # remove leading/trailing spaces
-            c = c.strip()
-            values.append(c)
-    return set(values)
+    citation_regex = (
+        r"\b[\w\-]+\set\sal\.\s\([0-9]{4}\)|"
+        r"\((?:[^\)]*?[a-zA-Z][^\)]*?[0-9]{4}[^\)]*?)\)|"
+        r"\(None[a-f]{0,1} pages [0-9]{1,10}-[0-9]{1,10}\)"
+    )
+    # Compile the combined regex pattern
+    pattern = re.compile(citation_regex, flags=re.MULTILINE)
+    # Perform a single search for both types of citations
+    results = pattern.findall(text)
+    
+    # Use a set comprehension for better performance
+    values = {
+        c.strip() 
+        for citation in results 
+        for c in re.split(",|;", citation.strip("() ")) 
+        if c and c != "Extra background information"
+    }
+    
+    return values
 
 
 def extract_doi(reference: str) -> str:
